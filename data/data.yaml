@@ -1,0 +1,14 @@
+path: data
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 1
+names: ['Muzzle']
+
+roboflow:
+  workspace: fashol
+  project: newcowmuzzle
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/fashol/newcowmuzzle/dataset/1
