@@ -22,7 +22,8 @@ Scripts
 - `train.py`: Fine-tunes YOLO11 on the muzzle dataset.
   - Args: `--weights`, `--epochs`, `--imgsz`, `--batch`, `--device`, `--name`, `--patience`.
   - Device handling: `--device auto` resolves to CUDA (`'0'`) if available, else Apple `mps`, else CPU.
-  - Defaults: `--weights yolo11n.pt`, `--epochs 100`, `--imgsz 640`, `--batch -1`, `--device auto`, `--name yolo11-cow`, `--patience 25`.
+  - Resilience args: `--resume` (resume training), `--ckpt` (checkpoint path), `--save_period` (save every N epochs), `--exist_ok` (reuse run dir).
+  - Defaults: `--weights yolo11n.pt`, `--epochs 100`, `--imgsz 640`, `--batch -1`, `--device auto`, `--name yolo11-cow`, `--patience 25`, `--resume False`, `--ckpt ''`, `--save_period 0`, `--exist_ok False`.
 - `validate.py`: Validates a trained checkpoint on the dataset and reports metrics.
   - Args: `--weights`, `--data`, `--imgsz`, `--batch`, `--device`, `--name`.
   - Defaults: `--weights runs/yolo11-cow/weights/best.pt`, `--data data/data.yaml`, `--imgsz 640`, `--batch -1`, `--device auto`, `--name val`.
@@ -40,6 +41,16 @@ Train
 - Outputs:
   - Runs under `runs/yolo11-cow/`
   - Best weights at `runs/yolo11-cow/weights/best.pt`
+
+Resuming Training (Crash‑safe)
+- Quick resume using the current run name (looks for `runs/<name>/weights/last.pt` then `best.pt`):
+  - `python train.py --resume --name yolo11-cow --epochs 50 --imgsz 640`
+- Resume from an explicit checkpoint path:
+  - `python train.py --resume --ckpt runs/yolo11-cow/weights/last.pt --epochs 50 --imgsz 640`
+- Save more frequent intermediate checkpoints (e.g., every 5 epochs):
+  - `python train.py --epochs 50 --save_period 5`
+- Reuse the same run directory without auto-incrementing:
+  - `python train.py --exist_ok --name yolo11-cow ...`
 
 Validate
 - Training script runs validation after training, but you can run it explicitly:
@@ -62,11 +73,18 @@ Predict (Local Testing)
   - `python predict.py --weights runs/yolo11-cow/weights/best.pt --source path/to/video.mp4 --device auto`
   - The annotated video is saved under `runs/predict/` with the same base filename.
 - Webcam (if available):
-  - `python predict.py --weights runs/yolo11-cow/weights/best.pt --source 0`
+  - Default (built-in camera): `python predict.py --weights runs/yolo11-cow/weights/best.pt --source 0 --device auto --show`
+  - External camera: try indices `--source 1`, `--source 2`, ...
+  - IP/RTSP camera (optional): `python predict.py --weights runs/yolo11-cow/weights/best.pt --source rtsp://user:pass@host:554/ --show`
+  - Tips:
+    - macOS: grant Camera permission to your Terminal/Python app (System Settings → Privacy & Security → Camera).
+    - Linux: list devices with `ls /dev/video*` and pick the index (e.g., `/dev/video0` ⇒ `--source 0`).
 - Useful flags:
   - `--conf 0.25` set confidence threshold (e.g., 0.20–0.40)
   - `--imgsz 640` inference image size
   - `--device auto|cpu|0` select CPU or GPU
+  - `--show` display live annotated frames (handy for webcam)
+  - `--nosave` avoid writing output files to disk
 - Outputs are saved under `runs/predict/`.
 
 Notes
@@ -78,3 +96,16 @@ Export to TFLite (Later)
 - Once local results are satisfactory, export with Ultralytics:
   - `python -c "from ultralytics import YOLO; YOLO('runs/yolo11-cow/weights/best.pt').export(format='tflite')"`
 - Then test the `.tflite` model similarly to your `main.py` or via a small comparison script.
+
+Troubleshooting (Ubuntu)
+- ImportError: libGL.so.1 (when importing cv2)
+  - Option A — install system libs (keeps GUI support):
+    - `sudo apt update && sudo apt install -y libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 ffmpeg`
+  - Option B — use headless OpenCV (no GUI windows, but saving works):
+    - `pip uninstall -y opencv-python opencv-contrib-python || true`
+    - `pip install opencv-python-headless`
+  - Verify: `python -c "import cv2; print(cv2.__version__)"`
+- Video/Webcam on servers:
+  - Ensure `ffmpeg` is installed: `sudo apt install -y ffmpeg`.
+  - Avoid `--show` on headless machines; results still save to `runs/predict/`.
+  - For live display on a server, use a desktop session or X forwarding (or run locally).

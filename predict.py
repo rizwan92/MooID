@@ -20,6 +20,12 @@ def main():
     parser.add_argument(
         "--device", default="auto", help="'auto', 'cpu', 'mps', or CUDA index like '0'"
     )
+    parser.add_argument(
+        "--show", action="store_true", help="Display annotated stream in a window"
+    )
+    parser.add_argument(
+        "--nosave", action="store_true", help="Do not save outputs to disk"
+    )
     args = parser.parse_args()
 
     # Resolve device: prefer CUDA, then MPS, else CPU if 'auto'
@@ -42,7 +48,8 @@ def main():
         imgsz=args.imgsz,
         conf=args.conf,
         device=dev,
-        save=True,
+        save=not args.nosave,
+        show=args.show,
         project="runs",
         name="predict",
     )
